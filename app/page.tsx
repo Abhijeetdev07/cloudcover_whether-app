@@ -1,65 +1,164 @@
-import Image from "next/image";
+'use client';
+
+import { useEffect, useState } from 'react';
+import type { CurrentWeatherResponse, ForecastResponse, DailyForecast, WeatherType } from '@/types/weather';
+import { getCurrentWeather, getWeatherByCoords, getForecast, getForecastByCoords, processDailyForecast } from '@/lib/weatherAPI';
+import { getCurrentLocation, DEFAULT_LOCATION } from '@/lib/geolocation';
+import SearchBar from '@/components/SearchBar';
+import WeatherCard from '@/components/WeatherCard';
+import ForecastCard from '@/components/ForecastCard';
+import LoadingSpinner from '@/components/LoadingSpinner';
+import ErrorMessage from '@/components/ErrorMessage';
+import WeatherBackground from '@/components/WeatherBackground';
+import { FiMapPin } from 'react-icons/fi';
 
 export default function Home() {
+  const [weather, setWeather] = useState<CurrentWeatherResponse | null>(null);
+  const [forecast, setForecast] = useState<DailyForecast[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [weatherType, setWeatherType] = useState<WeatherType>('clear');
+  const [isDay, setIsDay] = useState(true);
+
+  // Fetch weather by coordinates
+  const fetchWeatherByCoords = async (lat: number, lon: number) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const [weatherData, forecastData] = await Promise.all([
+        getWeatherByCoords(lat, lon),
+        getForecastByCoords(lat, lon),
+      ]);
+
+      setWeather(weatherData);
+      setForecast(processDailyForecast(forecastData));
+      updateWeatherType(weatherData);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch weather data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch weather by city name
+  const fetchWeatherByCity = async (city: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const [weatherData, forecastData] = await Promise.all([
+        getCurrentWeather(city),
+        getForecast(city),
+      ]);
+
+      setWeather(weatherData);
+      setForecast(processDailyForecast(forecastData));
+      updateWeatherType(weatherData);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch weather data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Update weather type and day/night status
+  const updateWeatherType = (weatherData: CurrentWeatherResponse) => {
+    const condition = weatherData.weather[0].main.toLowerCase() as WeatherType;
+    setWeatherType(condition);
+
+    const currentTime = Date.now() / 1000;
+    const isDayTime = currentTime > weatherData.sys.sunrise && currentTime < weatherData.sys.sunset;
+    setIsDay(isDayTime);
+  };
+
+  // Get user location on mount
+  useEffect(() => {
+    const initWeather = async () => {
+      try {
+        const location = await getCurrentLocation();
+        await fetchWeatherByCoords(location.latitude, location.longitude);
+      } catch (err) {
+        // Fallback to default location
+        console.log('Using default location:', err);
+        await fetchWeatherByCoords(DEFAULT_LOCATION.latitude, DEFAULT_LOCATION.longitude);
+      }
+    };
+
+    initWeather();
+  }, []);
+
+  // Handle search
+  const handleSearch = (city: string) => {
+    fetchWeatherByCity(city);
+  };
+
+  // Handle retry
+  const handleRetry = () => {
+    if (weather) {
+      fetchWeatherByCity(weather.name);
+    } else {
+      fetchWeatherByCoords(DEFAULT_LOCATION.latitude, DEFAULT_LOCATION.longitude);
+    }
+  };
+
+  // Handle use current location
+  const handleUseCurrentLocation = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const location = await getCurrentLocation();
+      await fetchWeatherByCoords(location.latitude, location.longitude);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to get location');
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <main className="min-h-screen relative">
+      <WeatherBackground weatherType={weatherType} isDay={isDay} />
+      
+      <div className="container mx-auto px-4 py-8 relative z-10">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-5xl md:text-6xl font-bold text-white mb-4 drop-shadow-lg">
+            Weather Forecast
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="text-white/80 text-lg">
+            Real-time weather updates for any location
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+
+        {/* Search Bar */}
+        <SearchBar onSearch={handleSearch} isLoading={loading} />
+
+        {/* Current Location Button */}
+        <div className="flex justify-center mb-8">
+          <button
+            onClick={handleUseCurrentLocation}
+            disabled={loading}
+            className="flex items-center gap-2 px-6 py-3 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-all duration-300 backdrop-blur-sm disabled:opacity-50"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            <FiMapPin size={20} />
+            Use Current Location
+          </button>
         </div>
-      </main>
-    </div>
+
+        {/* Content */}
+        {loading && <LoadingSpinner />}
+        
+        {error && !loading && (
+          <ErrorMessage message={error} onRetry={handleRetry} />
+        )}
+
+        {weather && !loading && !error && (
+          <div className="space-y-6">
+            <WeatherCard weather={weather} />
+            {forecast.length > 0 && <ForecastCard forecasts={forecast} />}
+          </div>
+        )}
+      </div>
+    </main>
   );
 }
