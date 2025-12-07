@@ -225,7 +225,7 @@ export default function LoadingSpinner() {
           30% { opacity: 1; }
           60% { opacity: 1; }
           65% { opacity: 0; }
-          100% { opacity: 0; }
+          100% { opacity: 0; } 
         }
       `}</style>
     </div>
