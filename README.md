@@ -1,4 +1,5 @@
-# Weather App
-next.js
+# Weather App ️🌦️
+## next.js
 
- [try it out](https://cloudcover-nine.vercel.app/)
+ [live here...](https://cloudcover-nine.vercel.app/)
+
