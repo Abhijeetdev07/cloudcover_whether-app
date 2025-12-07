@@ -15,6 +15,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Weather App - Real-time Weather Forecast",
   description: "Get real-time weather updates and 5-day forecasts for any city worldwide",
+  icons: {
+    icon: "/fevicon.png",
+  },
 };
 
 export default function RootLayout({

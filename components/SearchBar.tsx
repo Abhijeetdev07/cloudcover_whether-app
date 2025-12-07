@@ -28,6 +28,7 @@ export default function SearchBar({ onSearch, isLoading }: SearchBarProps) {
           placeholder="Search for a city..."
           className="w-full px-6 py-4 pr-14 bg-transparent text-white placeholder-white/60 outline-none text-lg"
           disabled={isLoading}
+          suppressHydrationWarning
         />
         <button
           type="submit"
